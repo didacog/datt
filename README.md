@@ -1,7 +1,7 @@
 # datt
 DRLM Automated Testing Tool
 
-- livbirt
+- libvirt
 - vagrant
 - BATS
 
