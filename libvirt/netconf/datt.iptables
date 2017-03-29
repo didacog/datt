@@ -1,0 +1,25 @@
+*nat
+:PREROUTING ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+# Do not masquerade to these reserved address blocks.
+-A POSTROUTING -s 10.100.0.0/24 -d 224.0.0.0/24 -j RETURN
+-A POSTROUTING -s 10.100.0.0/24 -d 255.255.255.255/32 -j RETURN
+# Masquerade all packets going from VMs to the LAN/Internet.
+-A POSTROUTING -s 10.100.0.0/24 ! -d 10.100.0.0/24 -p tcp -j MASQUERADE --to-ports 1024-65535
+-A POSTROUTING -s 10.100.0.0/24 ! -d 10.100.0.0/24 -p udp -j MASQUERADE --to-ports 1024-65535
+-A POSTROUTING -s 10.100.0.0/24 ! -d 10.100.0.0/24 -j MASQUERADE
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+# Allow established traffic to the private subnet.
+-A FORWARD -d 10.100.0.0/24 -o dattnet -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+# Allow outbound traffic from the private subnet.
+-A FORWARD -s 10.100.0.0/24 -i dattnet -j ACCEPT
+# Allow traffic between virtual machines.
+-A FORWARD -i dattnet -o dattnet -j ACCEPT
+# Reject everything else.
+-A FORWARD -i dattnet -j REJECT --reject-with icmp-port-unreachable
+-A FORWARD -o dattnet -j REJECT --reject-with icmp-port-unreachable
+COMMIT
