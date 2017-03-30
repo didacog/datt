@@ -1,0 +1,32 @@
+*nat
+:PREROUTING ACCEPT [10:440]
+:INPUT ACCEPT [3:216]
+:OUTPUT ACCEPT [157:10495]
+:POSTROUTING ACCEPT [157:10495]
+-A POSTROUTING -s 10.100.0.0/24 -d 224.0.0.0/24 -j RETURN
+-A POSTROUTING -s 10.100.0.0/24 -d 255.255.255.255/32 -j RETURN
+-A POSTROUTING -s 10.100.0.0/24 ! -d 10.100.0.0/24 -p tcp -j MASQUERADE --to-ports 1024-65535
+-A POSTROUTING -s 10.100.0.0/24 ! -d 10.100.0.0/24 -p udp -j MASQUERADE --to-ports 1024-65535
+-A POSTROUTING -s 10.100.0.0/24 ! -d 10.100.0.0/24 -j MASQUERADE
+-A POSTROUTING -s 10.100.0.0/24 -d 224.0.0.0/24 -j RETURN
+-A POSTROUTING -s 10.100.0.0/24 -d 255.255.255.255/32 -j RETURN
+-A POSTROUTING -s 10.100.0.0/24 ! -d 10.100.0.0/24 -p tcp -j MASQUERADE --to-ports 1024-65535
+-A POSTROUTING -s 10.100.0.0/24 ! -d 10.100.0.0/24 -p udp -j MASQUERADE --to-ports 1024-65535
+-A POSTROUTING -s 10.100.0.0/24 ! -d 10.100.0.0/24 -j MASQUERADE
+COMMIT
+*filter
+:INPUT ACCEPT [1028:457830]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [986:186039]
+-A INPUT -i dattnet -p udp -m udp --dport 53 -j ACCEPT
+-A INPUT -i dattnet -p tcp -m tcp --dport 53 -j ACCEPT
+-A INPUT -i dattnet -p udp -m udp --dport 67 -j ACCEPT
+-A INPUT -i dattnet -p tcp -m tcp --dport 67 -j ACCEPT
+-A FORWARD -d 10.100.0.0/24 -o dattnet -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -s 10.100.0.0/24 -i dattnet -j ACCEPT
+-A FORWARD -i dattnet -o dattnet -j ACCEPT
+-A FORWARD -o dattnet -j REJECT --reject-with icmp-port-unreachable
+-A FORWARD -i dattnet -j REJECT --reject-with icmp-port-unreachable
+-A OUTPUT -o dattnet -p udp -m udp --dport 68 -j ACCEPT
+COMMIT
+
