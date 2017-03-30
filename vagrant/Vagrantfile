@@ -4,6 +4,8 @@ nodes = [
   load 'conf/boxes_to_test.rb' 
 ]
 
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+
 # Deployment of the testing enviroment
 
 Vagrant.configure("2") do |config|
@@ -13,34 +15,65 @@ Vagrant.configure("2") do |config|
       nodeconfig.vm.boot_timeout = 480
       nodeconfig.vm.box = node[:box]
       nodeconfig.vm.hostname = node[:hostname] + ".box"
-      # Disable Shared Folders, we're not using them.
-      nodeconfig.vm.synced_folder ".", "/vagrant", :disabled => true
-      nodeconfig.vm.network :forwarded_port, guest: 22, host: node[:fport], id: 'ssh'
-      nodeconfig.vm.network "private_network", ip: node[:ip], :mac => node[:mac], :name => node[:net], :adapter => node[:nic]
-
-      if !(node[:ip2].nil?) || !(node[:net2].nil?) || !(node[:nic2].nil?)
-        nodeconfig.vm.network "private_network", ip: node[:ip2], :mac => node[:mac2], :name => node[:net2], :adapter => node[:nic2]
+      nodeconfig.vm.network :private_network, 
+	:mac => node[:mac], 
+	:ip => node[:ip], 
+	:libvirt__network_name => 'dattnet', 
+	:libvirt__forward_mode => 'nat',
+	:libvirt__dhcp_enabled => false,
+      if node[:firmware]
+	nodeconfig.vm.loader = node[:firmware]
       end
 
+
+      # Use default vagrant insecure keys
+
+      nodeconfig.ssh.insert_key = false
+      nodeconfig.ssh.private_key_path = "./insecure_keys/ssh.priv"
+
+
       memory = node[:ram] ? node[:ram] : 256;
-      nodeconfig.vm.provider :virtualbox do |vb|
-       	vb.name = node[:hostname]
-       	vb.gui = false
-        vb.customize [
-          "modifyvm", :id,
-          "--cpuexecutioncap", "50",
-          "--memory", memory.to_s,
-       	  "--usb", "off",
-       	  "--usbehci", "off",
-       	  "--cableconnected1", "on",
-        ]
+
+      # Provider-specific configuration
+
+      nodeconfig.vm.provider :libvirt do |libvirt|
+	libvirt.driver = "qemu"
+#	libvirt.connect_via_ssh = true
+#	libvirt.storage_pool_name = "vm-images"
+#	libvirt.graphics_port = node[:gport]
+#	libvirt.video_type = 'qxl'
       end
     end
   end
+
+  # Disable Shared Folders, we're not using them.
+
+  nodeconfig.vm.synced_folder ".", "/vagrant", :disabled => true
+
+  # Provisioning of all nodes
 
   nodes.each do |node|
        	config.vm.define node[:hostname] do |nodeconfig|
        	  nodeconfig.vm.provision "shell", path: node[:script]
        	end
   end
+
+#  config.vm.define "recover", autostart: false do |recover|
+#    recover.vm.network :private_network, ip: "10.100.0.254"
+#    # recover.ssh.username = "root"
+#    recover.ssh.insert_key = false
+#    recover.ssh.private_key_path = "./insecure_keys/ssh.priv"
+#
+#    recover.vm.provider :libvirt do |recover_prov|
+#      recover_prov.graphics_port = 5993
+#      recover_prov.graphics_ip = '127.0.0.1'
+#      recover_prov.video_type = 'qxl'
+#      recover_prov.storage :file, :size => '40G', :type => 'raw'
+#      recover_prov.boot 'network'
+#      recover_prov.boot 'cdrom'
+#      recover_prov.boot 'hd'
+#    end
+#      
+#  end
+  
 end
