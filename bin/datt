@@ -7,6 +7,7 @@
 PROGNAME=${0##*/}
 VERSION=0.1
 
+BIN_DIR="./bin"
 CONF_DIR="./conf"
 TESTS_DIR="./tests"
 LIBS_DIR="./libs"
@@ -39,17 +40,33 @@ Copyright: GPL v3
 "
 
 
-if [[ $(id -u) -ne 0 ]] ; then
-    Error "Please run $PRGNAME as root"
+#if [[ $(id -u) -ne 0 ]] ; then
+#    Error "Please run $PRGNAME as root"
+#fi
+
+
+# check if vagrant is present
+if ! type -p vagrant &>/dev/null ; then
+    Error "Please install Vagrant 1.8.7 or higher"
 fi
+
+# hard-code the correct security settings on vagrant SSH keys
+if [[ -f $VAGRANT_DIR/insecure_keys/ssh.priv ]] ; then
+    chmod 600 $VAGRANT_DIR/insecure_keys/ssh.priv
+    chmod 644 $VAGRANT_DIR/insecure_keys/ssh.pub
+else
+    Error "file $VAGRANT_DIR/insecure_keys/ssh.priv not found"
+fi
+
+# We have chosen the proper provider - did we? Check the basics - are the main paths there or not?
+[[ ! -d /var/lib/libvirt ]] && Error "Libvirt seems not to be installed"
+
 
 while getopts ":s:c:t:vh" opt; do
     case "$opt" in
-        s) servers="$OPTARG" ;;
-        c) clients="$OPTARG" ;;
-	t) tests="$OPTARG"
-	   DO_TEST="y"
-	   ;;
+        s) servers=( $(echo "$OPTARG" | tr ',' ' ') ) ;;
+        c) clients=( $(echo "$OPTARG" | tr ',' ' ') );;
+	t) tests=( $(echo "$OPTARG" | tr ',' ' ') ) ;;
         h) helpMsg; exit 0 ;;
         v) echo "$PROGNAME version $VERSION"; exit 0 ;;
        \?) echo "$PROGNAME: unknown option used: [$OPTARG]."
@@ -58,21 +75,40 @@ while getopts ":s:c:t:vh" opt; do
 done
 shift $(( OPTIND - 1 ))
 
-# check if vagrant is present
-if ! type -p vagrant &>/dev/null ; then
-    Error "Please install Vagrant 1.8.7 or higher"
-fi
+# check servers array by distro error if wrong distro
+# check clients array by distro error if wrong distro
 
-# We have chosen the proper provider - did we? Check the basics - are the main paths there or not?
-[[ ! -d /var/lib/libvirt ]] && Error "Libvirt seems not to be installed"
+DATT_CMD=$1
+case "$DATT_CMD" in
+    vagrant-up) 
+        # start defined vagrant environment for testing
+        ;;
+    vagrant-destroy) 
+        # destroy defined vagrant environment for testing
+        ;;
+    vagrant-suspend) 
+        # suspend defined vagrant environment for testing
+        ;;
+    vagrant-resume) 
+        # resume defined vagrant environment for testing
+        ;;
+    vagrant-status) 
+        # show status vagrant environment for testing
+        ;;
+    test-prep) 
+        # prepare defined tests to run in the prepared environment
+        ;;
+    test-list) 
+        # list available tests to run in the prepared environment
+        ;;
+    test-run) 
+        # run defined tests in the environment
+        ;;
+    *) echo "$PROGNAME: unknown command used: [$DATT_CMD]."
+       helpMsg; exit 0 ;;
+esac
 
-# check if <distro> exists?
-#if [[ ! -d "$distro" ]] ; then
-#    echo "$(bold $(red ERROR: Could not find directory '$distro'))"
-#    echo "       Distribution $distro is not (yet) supported by $PRGNAME"
-#    echo "       You can always sponsor this - see README.md"
-#    exit 1 
-#fi
+
 
 # Check and/or add the client/server IP addresses to the local /etc/hosts file
 grep -q "^$client" /etc/hosts
@@ -97,13 +133,6 @@ if [[ $? -ge 1 ]] ;then
 fi
 
 
-# hard-code the correct security settings on vagrant SSH keys
-if [[ -f $VAGRANT_DIR/insecure_keys/ssh.priv ]] ; then
-    chmod 600 $VAGRANT_DIR/insecure_keys/ssh.priv
-    chmod 644 $VAGRANT_DIR/insecure_keys/ssh.pub
-else
-    Error "file $VAGRANT_DIR/insecure_keys/ssh.priv not found"
-fi
 
 # trap Cntrl-C interrupts during vagrant calls (we will foresee a small time to interrupt
 # during a period that is safe - meaning do not scratch a VM box)
