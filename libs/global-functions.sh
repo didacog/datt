@@ -122,7 +122,7 @@ function SourceStage () {
         cd $SHARE_DIR/$stage ;
         # We always source scripts in the same subdirectory structure. The {..,..,..} way of writing
         # it is just a shell shortcut that expands as intended.
-        ls -d {default}/*.sh \
+        ls -d default/*.sh \
         | sed -e 's#/\([0-9][0-9][0-9]\)_#/!\1!_#g' | sort -t \! -k 2 | tr -d \!
         )
         # This sed hack is neccessary to sort the scripts by their 3-digit number INSIDE independent of the
