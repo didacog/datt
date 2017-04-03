@@ -7,11 +7,16 @@
 PROGNAME=${0##*/}
 VERSION=0.1
 
+# dirs
 BIN_DIR="./bin"
 CONF_DIR="./conf"
 TESTS_DIR="./tests"
 LIBS_DIR="./libs"
+SHARE_DIR="./share"
 VAGRANT_DIR="./vagrant"
+# files
+ENV_CONF_LOCK="$VAGRANT_DIR/conf/env_conf.lock"
+VAGRANT_BOXES_ARRAY_FILE=$VAGRANT_DIR/conf/boxes.rb
 
 # Load datt libraries
 for lib in $(ls $LIBS_DIR/*)
@@ -19,7 +24,7 @@ do
     source $lib 
 done
 # Load datt configurations
-for cfg in default servers clients
+for cfg in default servers clients boxes
 do
     source $CONF_DIR/$cfg.conf
 done
@@ -58,56 +63,98 @@ else
     Error "file $VAGRANT_DIR/insecure_keys/ssh.priv not found"
 fi
 
-# We have chosen the proper provider - did we? Check the basics - are the main paths there or not?
+# Have we the provider installed? Check the basics - are the main paths there or not?
 [[ ! -d /var/lib/libvirt ]] && Error "Libvirt seems not to be installed"
 
 
-while getopts ":s:c:t:vh" opt; do
-    case "$opt" in
-        s) servers=( $(echo "$OPTARG" | tr ',' ' ') ) ;;
-        c) clients=( $(echo "$OPTARG" | tr ',' ' ') );;
-	t) tests=( $(echo "$OPTARG" | tr ',' ' ') ) ;;
-        h) helpMsg; exit 0 ;;
-        v) echo "$PROGNAME version $VERSION"; exit 0 ;;
-       \?) echo "$PROGNAME: unknown option used: [$OPTARG]."
+#while getopts ":s:c:t:vh" opt; do
+#    case "$opt" in
+#        s) servers=( $(echo "$OPTARG" | tr ',' ' ') ) ;;
+#        c) clients=( $(echo "$OPTARG" | tr ',' ' ') );;
+#	t) tests=( $(echo "$OPTARG" | tr ',' ' ') ) ;;
+#        h) helpMsg; exit 0 ;;
+#        v) echo "$PROGNAME version $VERSION"; exit 0 ;;
+#       \?) echo "$PROGNAME: unknown option used: [$OPTARG]."
+#           helpMsg; exit 0 ;;
+#    esac
+#done
+#shift $(( OPTIND - 1 ))
+
+DATT_CMD=$1; shift
+DATT_SUBCMD=$2; shift
+case "$DATT_CMD" in
+vagrant)
+    case "$DATT_SUBCMD" in
+        setup) 
+            # setup defined vagrant environment for testing
+            while getopts ":s:c:t:vh" opt; do
+                case "$opt" in
+                    s) servers=( $(echo "$OPTARG" | tr ',' ' ') ) ;;
+                    c) clients=( $(echo "$OPTARG" | tr ',' ' ') ) ;;
+                    #t) tests=( $(echo "$OPTARG" | tr ',' ' ') ) ;;
+                    h) helpMsg; exit 0 ;;
+                    v) echo "$PROGNAME version $VERSION"; exit 0 ;;
+                   \?) echo "$PROGNAME: unknown option used: [$OPTARG]."
+                       helpMsg; exit 0 ;;
+                esac
+            done
+            if [[ -f $ENV_CONF_LOCK ]];then
+                Error "$PROGNAME:vagrant:setup: Another Environment is already enabled! Please run [destroy] to be able to prepare a new environment."
+            else
+                SourceStage "vagrant/setup"
+            fi
+            ;;
+        up) 
+            # start defined vagrant environment for testing
+            if [[ -f $ENV_CONF_LOCK ]];then
+            SourceStage "vagrant/up"
+            else
+                Error "$PROGNAME:vagrant:up: Environment is not ready! Please run [setup] to prepare the environment."
+            fi
+            ;;
+        destroy) 
+            # destroy defined vagrant environment for testing
+            SourceStage "vagrant/destroy"
+            ;;
+        suspend) 
+            # suspend defined vagrant environment for testing
+            SourceStage "vagrant/suspend"
+            ;;
+        resume) 
+            # resume defined vagrant environment for testing
+            SourceStage "vagrant/resume"
+            ;;
+        status) 
+            # show status vagrant environment for testing
+            SourceStage "vagrant/status"
+            ;;
+        halt) 
+            # halt defined vagrant environment for testing
+            SourceStage "vagrant/halt"
+            ;;
+        *) echo "$PROGNAME: unknown command used: [$DATT_CMD $DATT_SUBCMD]."
            helpMsg; exit 0 ;;
     esac
-done
-shift $(( OPTIND - 1 ))
-
-# check servers array by distro error if wrong distro
-# check clients array by distro error if wrong distro
-
-DATT_CMD=$1
-case "$DATT_CMD" in
-    vagrant-up) 
-        # start defined vagrant environment for testing
-        ;;
-    vagrant-destroy) 
-        # destroy defined vagrant environment for testing
-        ;;
-    vagrant-suspend) 
-        # suspend defined vagrant environment for testing
-        ;;
-    vagrant-resume) 
-        # resume defined vagrant environment for testing
-        ;;
-    vagrant-status) 
-        # show status vagrant environment for testing
-        ;;
-    test-prep) 
-        # prepare defined tests to run in the prepared environment
-        ;;
-    test-list) 
-        # list available tests to run in the prepared environment
-        ;;
-    test-run) 
-        # run defined tests in the environment
-        ;;
-    *) echo "$PROGNAME: unknown command used: [$DATT_CMD]."
-       helpMsg; exit 0 ;;
+    ;;
+test)
+    case "$DATT_SUBCMD" in
+        setup) 
+            # prepare defined tests to run in the prepared environment
+            SourceStage "test/setup"
+            ;;
+        list) 
+            # list available tests to run in the prepared environment
+            SourceStage "test/list"
+            ;;
+        run) 
+            # run defined tests in the environment
+            SourceStage "test/run"
+            ;;
+        *) echo "$PROGNAME: unknown command used: [$DATT_CMD $DATT_SUBCMD]."
+           helpMsg; exit 0 ;;
+    esac
+    ;;
 esac
-
 
 
 # Check and/or add the client/server IP addresses to the local /etc/hosts file

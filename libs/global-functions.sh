@@ -93,4 +93,50 @@ function IsInArray() {
     return 1
 }
 
+function Source () {
+    local source_file="$1"
+    # Skip if source file name is empty:
+    if test -z "$source_file" ; then
+        return
+    fi
+    # Ensure source file is not a directory:
+    test -d "$source_file" && Error "Source file '$source_file' is a directory, cannot source"
+    # Skip if source file does not exist of if its content is empty:
+    if ! test -s "$source_file" ; then
+        return
+    fi
+    # Clip leading standard path to datt files (usually ????): 
+    local relname="${source_file##$SHARE_DIR/}"
+    # The actual work (source the source file):
+    source "$source_file"
+}
 
+# collect scripts given in $1 in the standard subdirectories and
+# sort them by their script file name and
+# source them
+function SourceStage () {
+    stage="$1"
+    shift
+    scripts=(
+        $(
+        cd $SHARE_DIR/$stage ;
+        # We always source scripts in the same subdirectory structure. The {..,..,..} way of writing
+        # it is just a shell shortcut that expands as intended.
+        ls -d {default}/*.sh \
+        | sed -e 's#/\([0-9][0-9][0-9]\)_#/!\1!_#g' | sort -t \! -k 2 | tr -d \!
+        )
+        # This sed hack is neccessary to sort the scripts by their 3-digit number INSIDE independent of the
+        # directory depth of the script. Basically sed inserts a ! before and after the number which makes the
+        # number always field nr. 2 when dividing lines into fields by !. The following tr removes the ! to
+        # restore the original script name. But now the scripts are already in the correct order.
+        )
+    # if no script is found, then $scripts contains only .
+    # remove the . in this case
+    test "$scripts" = . && scripts=()
+
+    if test "${#scripts[@]}" -gt 0 ; then
+        for script in ${scripts[@]} ; do
+            Source $SHARE_DIR/$stage/"$script"
+        done
+    fi
+}
