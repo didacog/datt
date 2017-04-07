@@ -14,6 +14,7 @@ Vagrant.configure("2") do |config|
       nodeconfig.vm.hostname = node[:hostname] + ".box"
       nodeconfig.vm.network :private_network, 
 	:mac => node[:mac], 
+        :model_type => 'e1000',
 	:ip => node[:ip], 
 	:libvirt__network_name => 'dattnet', 
 	:libvirt__forward_mode => 'nat',
