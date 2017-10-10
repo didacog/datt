@@ -24,7 +24,7 @@ do
     source $lib 
 done
 # Load datt configurations
-for cfg in default servers clients boxes
+for cfg in default boxes servers clients
 do
     source $CONF_DIR/$cfg.conf
 done
